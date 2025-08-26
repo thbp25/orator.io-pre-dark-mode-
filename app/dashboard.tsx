@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Plus } from 'lucide-react-native';
+import { Plus, Menu, Sun, Moon } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Project {
@@ -31,10 +32,13 @@ interface Run {
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     loadProjects();
+    loadTheme();
   }, []);
 
   useFocusEffect(
@@ -54,6 +58,28 @@ export default function Dashboard() {
     }
   };
 
+  const loadTheme = async () => {
+    try {
+      const storedTheme = await AsyncStorage.getItem('isDarkMode');
+      if (storedTheme !== null) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      }
+    } catch (error) {
+      console.error('Error loading theme:', error);
+    }
+  };
+
+  const toggleTheme = async () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    try {
+      await AsyncStorage.setItem('isDarkMode', JSON.stringify(newTheme));
+    } catch (error) {
+      console.error('Error saving theme:', error);
+    }
+    setShowMenu(false);
+  };
+
   const showCreateOptions = () => {
     Alert.alert(
       'Create New',
@@ -69,32 +95,41 @@ export default function Dashboard() {
 
   const renderProject = ({ item }: { item: Project }) => (
     <TouchableOpacity
-      style={styles.projectCard}
+      style={[styles.projectCard, isDarkMode ? styles.projectCardDark : styles.projectCardLight]}
       onPress={() => router.push(`/project/${item.id}`)}
     >
-      <Text style={styles.projectName}>{item.name}</Text>
-      <Text style={styles.projectDetails}>
+      <Text style={[styles.projectName, isDarkMode ? styles.textDark : styles.textLight]}>
+        {item.name}
+      </Text>
+      <Text style={[styles.projectDetails, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
         Duration: {item.duration.minutes}:{item.duration.seconds.toString().padStart(2, '0')}
       </Text>
-      <Text style={styles.projectDetails}>
+      <Text style={[styles.projectDetails, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
         Words: {item.wordCount}
       </Text>
-      <Text style={styles.projectDetails}>
+      <Text style={[styles.projectDetails, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
         Runs: {item.runs.length}
       </Text>
     </TouchableOpacity>
   );
 
+  const currentStyles = isDarkMode ? darkStyles : lightStyles;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Projects</Text>
+    <View style={[styles.container, currentStyles.container]}>
+      <View style={[styles.header, currentStyles.header]}>
+        <Text style={[styles.title, currentStyles.title]}>My Projects</Text>
+        <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuButton}>
+          <Menu size={24} color={isDarkMode ? "#ffffff" : "#000000"} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
         {projects.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Start your first project!</Text>
+            <Text style={[styles.emptyText, currentStyles.emptyText]}>
+              Start your first project!
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -106,13 +141,39 @@ export default function Dashboard() {
         )}
       </View>
 
-      <View style={styles.adPlaceholder}>
+      <View style={[styles.adPlaceholder, currentStyles.adPlaceholder]}>
         <Text style={styles.adText}>Google AdSense Placeholder</Text>
       </View>
 
       <TouchableOpacity style={styles.fab} onPress={showCreateOptions}>
         <Plus size={28} color="#ffffff" />
       </TouchableOpacity>
+
+      <Modal
+        visible={showMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View style={[styles.menuModal, currentStyles.menuModal]}>
+            <TouchableOpacity style={styles.menuItem} onPress={toggleTheme}>
+              {isDarkMode ? (
+                <Sun size={20} color="#ffffff" />
+              ) : (
+                <Moon size={20} color="#000000" />
+              )}
+              <Text style={[styles.menuItemText, currentStyles.menuItemText]}>
+                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -120,18 +181,21 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: '#1a1a2e',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
+  },
+  menuButton: {
+    padding: 8,
   },
   content: {
     flex: 1,
@@ -145,14 +209,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#666',
     textAlign: 'center',
   },
   projectsList: {
     paddingBottom: 20,
   },
   projectCard: {
-    backgroundColor: '#ffffff',
     padding: 20,
     borderRadius: 12,
     marginBottom: 16,
@@ -162,20 +224,35 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  projectCardLight: {
+    backgroundColor: '#ffffff',
+  },
+  projectCardDark: {
+    backgroundColor: '#2a2a2a',
+  },
   projectName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1a1a2e',
     marginBottom: 8,
   },
   projectDetails: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 4,
+  },
+  textLight: {
+    color: '#1a1a2e',
+  },
+  textDark: {
+    color: '#ffffff',
+  },
+  textSecondaryLight: {
+    color: '#666',
+  },
+  textSecondaryDark: {
+    color: '#cccccc',
   },
   adPlaceholder: {
     height: 60,
-    backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
     margin: 20,
@@ -200,5 +277,76 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 100,
+    paddingRight: 20,
+  },
+  menuModal: {
+    borderRadius: 8,
+    padding: 8,
+    minWidth: 150,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+});
+
+const lightStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#f5f7fa',
+  },
+  header: {
+    backgroundColor: '#ffffff',
+  },
+  title: {
+    color: '#1a1a2e',
+  },
+  emptyText: {
+    color: '#666',
+  },
+  adPlaceholder: {
+    backgroundColor: '#e0e0e0',
+  },
+  menuModal: {
+    backgroundColor: '#ffffff',
+  },
+  menuItemText: {
+    color: '#000000',
+  },
+});
+
+const darkStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#1a1a1a',
+  },
+  header: {
+    backgroundColor: '#2a2a2a',
+  },
+  title: {
+    color: '#ffffff',
+  },
+  emptyText: {
+    color: '#cccccc',
+  },
+  adPlaceholder: {
+    backgroundColor: '#3a3a3a',
+  },
+  menuModal: {
+    backgroundColor: '#2a2a2a',
+  },
+  menuItemText: {
+    color: '#ffffff',
   },
 });

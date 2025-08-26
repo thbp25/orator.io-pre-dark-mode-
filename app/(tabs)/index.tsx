@@ -38,7 +38,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -52,11 +52,11 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#16213e',
+    backgroundColor: '#2a2a2a',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#0f4c75',
+    borderColor: '#3282b8',
   },
   logoText: {
     fontSize: 24,
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   },
   slogan: {
     fontSize: 18,
-    color: '#bbe1fa',
+    color: '#cccccc',
     fontWeight: '300',
     letterSpacing: 1,
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,30 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Clock, Play } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function QuickStart() {
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customMinutes, setCustomMinutes] = useState('');
   const [customSeconds, setCustomSeconds] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    loadTheme();
+  }, []);
+
+  const loadTheme = async () => {
+    try {
+      const storedTheme = await AsyncStorage.getItem('isDarkMode');
+      if (storedTheme !== null) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      }
+    } catch (error) {
+      console.error('Error loading theme:', error);
+    }
+  };
 
   const durations = [
     { label: '1 min', value: 60 },
@@ -104,13 +121,15 @@ export default function QuickStart() {
     });
   };
 
+  const currentStyles = isDarkMode ? darkStyles : lightStyles;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, currentStyles.container]}>
+      <View style={[styles.header, currentStyles.header]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#ffffff" />
+          <ArrowLeft size={24} color={isDarkMode ? "#ffffff" : "#000000"} />
         </TouchableOpacity>
-        <Text style={styles.title}>Quick Start</Text>
+        <Text style={[styles.title, currentStyles.title]}>Quick Start</Text>
       </View>
 
       <View style={styles.content}>
@@ -118,8 +137,8 @@ export default function QuickStart() {
           <Clock size={64} color="#3282b8" />
         </View>
         
-        <Text style={styles.subtitle}>Select Duration</Text>
-        <Text style={styles.description}>
+        <Text style={[styles.subtitle, currentStyles.subtitle]}>Select Duration</Text>
+        <Text style={[styles.description, currentStyles.description]}>
           Choose a duration for your quick practice session
         </Text>
 
@@ -129,6 +148,7 @@ export default function QuickStart() {
               key={duration.value}
               style={[
                 styles.durationButton,
+                currentStyles.durationButton,
                 (selectedDuration === duration.value || (duration.value === -1 && showCustomInput)) && styles.durationButtonSelected,
               ]}
               onPress={() => handleDurationSelect(duration)}
@@ -136,6 +156,7 @@ export default function QuickStart() {
               <Text
                 style={[
                   styles.durationText,
+                  currentStyles.durationText,
                   (selectedDuration === duration.value || (duration.value === -1 && showCustomInput)) && styles.durationTextSelected,
                 ]}
               >
@@ -147,27 +168,29 @@ export default function QuickStart() {
 
         {showCustomInput && (
           <View style={styles.customDurationContainer}>
-            <Text style={styles.customLabel}>Custom Duration</Text>
+            <Text style={[styles.customLabel, currentStyles.customLabel]}>Custom Duration</Text>
             <View style={styles.durationContainer}>
-              <View style={styles.durationInput}>
+              <View style={[styles.durationInput, currentStyles.durationInput]}>
                 <TextInput
-                  style={styles.timeInput}
+                  style={[styles.timeInput, currentStyles.timeInput]}
                   value={customMinutes}
                   onChangeText={setCustomMinutes}
                   placeholder="0"
+                  placeholderTextColor={isDarkMode ? "#666" : "#999"}
                   keyboardType="numeric"
                 />
-                <Text style={styles.timeLabel}>min</Text>
+                <Text style={[styles.timeLabel, currentStyles.timeLabel]}>min</Text>
               </View>
-              <View style={styles.durationInput}>
+              <View style={[styles.durationInput, currentStyles.durationInput]}>
                 <TextInput
-                  style={styles.timeInput}
+                  style={[styles.timeInput, currentStyles.timeInput]}
                   value={customSeconds}
                   onChangeText={handleSecondsChange}
                   placeholder="0"
+                  placeholderTextColor={isDarkMode ? "#666" : "#999"}
                   keyboardType="numeric"
                 />
-                <Text style={styles.timeLabel}>s</Text>
+                <Text style={[styles.timeLabel, currentStyles.timeLabel]}>s</Text>
               </View>
             </View>
           </View>
@@ -192,7 +215,6 @@ export default function QuickStart() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
   },
   header: {
     flexDirection: 'row',
@@ -200,12 +222,10 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: '#1a1a2e',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginLeft: 16,
   },
   content: {
@@ -220,12 +240,10 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a2e',
     marginBottom: 8,
   },
   description: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 40,
   },
@@ -237,12 +255,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   durationButton: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
     minWidth: 100,
     alignItems: 'center',
   },
@@ -253,7 +269,6 @@ const styles = StyleSheet.create({
   durationText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a2e',
   },
   durationTextSelected: {
     color: '#ffffff',
@@ -268,7 +283,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   startButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#666',
   },
   startButtonText: {
     fontSize: 18,
@@ -282,7 +297,6 @@ const styles = StyleSheet.create({
   customLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a2e',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -294,10 +308,8 @@ const styles = StyleSheet.create({
   durationInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     paddingHorizontal: 16,
     width: 100,
   },
@@ -309,7 +321,82 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 16,
-    color: '#666',
     marginLeft: 8,
+  },
+});
+
+const lightStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#f5f7fa',
+  },
+  header: {
+    backgroundColor: '#ffffff',
+  },
+  title: {
+    color: '#1a1a2e',
+  },
+  subtitle: {
+    color: '#1a1a2e',
+  },
+  description: {
+    color: '#666',
+  },
+  customLabel: {
+    color: '#1a1a2e',
+  },
+  durationButton: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e0e0e0',
+  },
+  durationText: {
+    color: '#1a1a2e',
+  },
+  durationInput: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e0e0e0',
+  },
+  timeInput: {
+    color: '#000000',
+  },
+  timeLabel: {
+    color: '#666',
+  },
+});
+
+const darkStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#1a1a1a',
+  },
+  header: {
+    backgroundColor: '#2a2a2a',
+  },
+  title: {
+    color: '#ffffff',
+  },
+  subtitle: {
+    color: '#ffffff',
+  },
+  description: {
+    color: '#cccccc',
+  },
+  customLabel: {
+    color: '#ffffff',
+  },
+  durationButton: {
+    backgroundColor: '#2a2a2a',
+    borderColor: '#3a3a3a',
+  },
+  durationText: {
+    color: '#ffffff',
+  },
+  durationInput: {
+    backgroundColor: '#2a2a2a',
+    borderColor: '#3a3a3a',
+  },
+  timeInput: {
+    color: '#ffffff',
+  },
+  timeLabel: {
+    color: '#cccccc',
   },
 });

@@ -21,11 +21,24 @@ export default function NewProject() {
   const [scriptUploaded, setScriptUploaded] = useState(false);
   const [scriptName, setScriptName] = useState('');
   const [manualWordCount, setManualWordCount] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     generateDefaultName();
+    loadTheme();
   }, []);
+
+  const loadTheme = async () => {
+    try {
+      const storedTheme = await AsyncStorage.getItem('isDarkMode');
+      if (storedTheme !== null) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      }
+    } catch (error) {
+      console.error('Error loading theme:', error);
+    }
+  };
 
   const generateDefaultName = async () => {
     try {
@@ -117,77 +130,96 @@ export default function NewProject() {
       projects.push(newProject);
       await AsyncStorage.setItem('projects', JSON.stringify(projects));
       
-      router.replace('/dashboard');
+      // Navigate to the project detail page instead of dashboard
+      router.replace(`/project/${newProject.id}`);
     } catch (error) {
       Alert.alert('Error', 'Failed to create project');
     }
   };
 
+  const currentStyles = isDarkMode ? darkStyles : lightStyles;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, currentStyles.container]}>
+      <View style={[styles.header, currentStyles.header]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#ffffff" />
+          <ArrowLeft size={24} color={isDarkMode ? "#ffffff" : "#000000"} />
         </TouchableOpacity>
-        <Text style={styles.title}>New Project</Text>
+        <Text style={[styles.title, currentStyles.title]}>New Project</Text>
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.label}>Project Name</Text>
+          <Text style={[styles.label, currentStyles.label]}>Project Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, currentStyles.input]}
             value={projectName}
             onChangeText={setProjectName}
             placeholder="Enter project name"
+            placeholderTextColor={isDarkMode ? "#666" : "#999"}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Duration</Text>
+          <Text style={[styles.label, currentStyles.label]}>Duration</Text>
           <View style={styles.durationContainer}>
-            <View style={styles.durationInput}>
+            <View style={[styles.durationInput, currentStyles.input]}>
               <TextInput
-                style={styles.timeInput}
+                style={[styles.timeInput, currentStyles.timeInput]}
                 value={minutes}
                 onChangeText={setMinutes}
                 placeholder="0"
+                placeholderTextColor={isDarkMode ? "#666" : "#999"}
                 keyboardType="numeric"
               />
-              <Text style={styles.timeLabel}>min</Text>
+              <Text style={[styles.timeLabel, currentStyles.timeLabel]}>min</Text>
             </View>
-            <View style={styles.durationInput}>
+            <View style={[styles.durationInput, currentStyles.input]}>
               <TextInput
-                style={styles.timeInput}
+                style={[styles.timeInput, currentStyles.timeInput]}
                 value={seconds}
                 onChangeText={handleSecondsChange}
                 placeholder="0"
+                placeholderTextColor={isDarkMode ? "#666" : "#999"}
                 keyboardType="numeric"
               />
-              <Text style={styles.timeLabel}>s</Text>
+              <Text style={[styles.timeLabel, currentStyles.timeLabel]}>s</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
           <TouchableOpacity
-            style={[styles.uploadButton, scriptUploaded && styles.uploadButtonActive]}
+            style={[
+              styles.uploadButton,
+              currentStyles.uploadButton,
+              scriptUploaded && styles.uploadButtonActive
+            ]}
             onPress={uploadScript}
           >
             <Upload size={20} color={scriptUploaded ? "#ffffff" : "#3282b8"} />
-            <Text style={[styles.uploadText, scriptUploaded && styles.uploadTextActive]}>
+            <Text style={[
+              styles.uploadText,
+              currentStyles.uploadText,
+              scriptUploaded && styles.uploadTextActive
+            ]}>
               {scriptUploaded ? `Uploaded: ${scriptName}` : 'Upload Script'}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Enter Word Count Manually</Text>
+          <Text style={[styles.label, currentStyles.label]}>Enter Word Count Manually</Text>
           <TextInput
-            style={[styles.input, scriptUploaded && styles.inputDisabled]}
+            style={[
+              styles.input,
+              currentStyles.input,
+              scriptUploaded && styles.inputDisabled
+            ]}
             value={wordCount}
             onChangeText={setWordCount}
             placeholder="Enter word count"
+            placeholderTextColor={isDarkMode ? "#666" : "#999"}
             keyboardType="numeric"
             editable={!scriptUploaded}
           />
@@ -204,7 +236,6 @@ export default function NewProject() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
   },
   header: {
     flexDirection: 'row',
@@ -212,12 +243,10 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: '#1a1a2e',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginLeft: 16,
   },
   content: {
@@ -230,20 +259,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a2e',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   inputDisabled: {
-    backgroundColor: '#f0f0f0',
-    color: '#999',
+    opacity: 0.5,
   },
   durationContainer: {
     flexDirection: 'row',
@@ -253,10 +278,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     paddingHorizontal: 16,
   },
   timeInput: {
@@ -266,14 +289,12 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 16,
-    color: '#666',
     marginLeft: 8,
   },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 16,
     borderWidth: 2,
@@ -286,7 +307,6 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: 16,
-    color: '#3282b8',
     marginLeft: 8,
   },
   uploadTextActive: {
@@ -303,5 +323,69 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+});
+
+const lightStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#f5f7fa',
+  },
+  header: {
+    backgroundColor: '#ffffff',
+  },
+  title: {
+    color: '#1a1a2e',
+  },
+  label: {
+    color: '#1a1a2e',
+  },
+  input: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e0e0e0',
+    color: '#000000',
+  },
+  timeInput: {
+    color: '#000000',
+  },
+  timeLabel: {
+    color: '#666',
+  },
+  uploadButton: {
+    backgroundColor: '#ffffff',
+  },
+  uploadText: {
+    color: '#3282b8',
+  },
+});
+
+const darkStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#1a1a1a',
+  },
+  header: {
+    backgroundColor: '#2a2a2a',
+  },
+  title: {
+    color: '#ffffff',
+  },
+  label: {
+    color: '#ffffff',
+  },
+  input: {
+    backgroundColor: '#2a2a2a',
+    borderColor: '#3a3a3a',
+    color: '#ffffff',
+  },
+  timeInput: {
+    color: '#ffffff',
+  },
+  timeLabel: {
+    color: '#cccccc',
+  },
+  uploadButton: {
+    backgroundColor: '#2a2a2a',
+  },
+  uploadText: {
+    color: '#3282b8',
   },
 });

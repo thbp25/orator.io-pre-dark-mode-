@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Play, Clock } from 'lucide-react-native';
+import { ArrowLeft, Play, Clock, Edit, Trash2, Upload } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
 
 interface Project {
   id: string;
@@ -31,11 +34,28 @@ interface Run {
 export default function ProjectDetail() {
   const { id } = useLocalSearchParams();
   const [project, setProject] = useState<Project | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editWordCount, setEditWordCount] = useState('');
+  const [editScriptName, setEditScriptName] = useState('');
+  const [hasScript, setHasScript] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     loadProject();
+    loadTheme();
   }, [id]);
+
+  const loadTheme = async () => {
+    try {
+      const storedTheme = await AsyncStorage.getItem('isDarkMode');
+      if (storedTheme !== null) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      }
+    } catch (error) {
+      console.error('Error loading theme:', error);
+    }
+  };
 
   const loadProject = async () => {
     try {
@@ -43,7 +63,12 @@ export default function ProjectDetail() {
       if (storedProjects) {
         const projects = JSON.parse(storedProjects);
         const foundProject = projects.find((p: Project) => p.id === id);
-        setProject(foundProject);
+        if (foundProject) {
+          setProject(foundProject);
+          setEditWordCount(foundProject.wordCount.toString());
+          setEditScriptName(foundProject.scriptName || '');
+          setHasScript(!!foundProject.scriptName);
+        }
       }
     } catch (error) {
       console.error('Error loading project:', error);
@@ -52,7 +77,6 @@ export default function ProjectDetail() {
 
   const createNewRun = () => {
     if (!project) return;
-
     showViewOptions();
   };
 
@@ -93,54 +117,122 @@ export default function ProjectDetail() {
     });
   };
 
+  const uploadNewScript = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const file = result.assets[0];
+        setEditScriptName(file.name);
+        setHasScript(true);
+        
+        // Simulate word count
+        const estimatedWords = Math.floor(Math.random() * 500) + 100;
+        setEditWordCount(estimatedWords.toString());
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to upload script');
+    }
+  };
+
+  const removeScript = () => {
+    setEditScriptName('');
+    setHasScript(false);
+  };
+
+  const saveChanges = async () => {
+    if (!project) return;
+
+    try {
+      const storedProjects = await AsyncStorage.getItem('projects');
+      if (storedProjects) {
+        const projects = JSON.parse(storedProjects);
+        const projectIndex = projects.findIndex((p: Project) => p.id === project.id);
+        
+        if (projectIndex !== -1) {
+          projects[projectIndex] = {
+            ...project,
+            wordCount: parseInt(editWordCount) || 0,
+            scriptName: hasScript ? editScriptName : undefined,
+          };
+          
+          await AsyncStorage.setItem('projects', JSON.stringify(projects));
+          setProject(projects[projectIndex]);
+          setShowEditModal(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save changes');
+    }
+  };
+
   const renderRun = ({ item }: { item: Run }) => (
-    <View style={styles.runCard}>
+    <View style={[styles.runCard, isDarkMode ? styles.runCardDark : styles.runCardLight]}>
       <View style={styles.runHeader}>
-        <Text style={styles.runName}>{item.name}</Text>
-        <Text style={styles.runDate}>{new Date(item.date).toLocaleDateString()}</Text>
+        <Text style={[styles.runName, isDarkMode ? styles.textDark : styles.textLight]}>
+          {item.name}
+        </Text>
+        <Text style={[styles.runDate, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
+          {new Date(item.date).toLocaleDateString()}
+        </Text>
       </View>
       <View style={styles.runDetails}>
-        <Text style={styles.runDetail}>
+        <Text style={[styles.runDetail, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
           Duration: {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}
         </Text>
-        <Text style={styles.runDetail}>Type: {item.type}</Text>
+        <Text style={[styles.runDetail, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
+          Type: {item.type}
+        </Text>
       </View>
     </View>
   );
 
   if (!project) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={[styles.container, isDarkMode ? darkStyles.container : lightStyles.container]}>
+        <Text style={isDarkMode ? styles.textDark : styles.textLight}>Loading...</Text>
       </View>
     );
   }
 
+  const currentStyles = isDarkMode ? darkStyles : lightStyles;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, currentStyles.container]}>
+      <View style={[styles.header, currentStyles.header]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#ffffff" />
+          <ArrowLeft size={24} color={isDarkMode ? "#ffffff" : "#000000"} />
         </TouchableOpacity>
-        <Text style={styles.title}>{project.name}</Text>
+        <Text style={[styles.title, currentStyles.title]}>{project.name}</Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.projectInfo}>
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, currentStyles.infoCard]}>
             <Clock size={24} color="#3282b8" />
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, currentStyles.infoText]}>
               {project.duration.minutes}:{project.duration.seconds.toString().padStart(2, '0')}
             </Text>
           </View>
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Words</Text>
-            <Text style={styles.infoText}>{project.wordCount}</Text>
+          <View style={[styles.infoCard, currentStyles.infoCard]}>
+            <Text style={[styles.infoLabel, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>Words</Text>
+            <Text style={[styles.infoText, currentStyles.infoText]}>{project.wordCount}</Text>
+            <TouchableOpacity onPress={() => setShowEditModal(true)} style={styles.editButton}>
+              <Edit size={16} color="#3282b8" />
+            </TouchableOpacity>
           </View>
           {project.scriptName && (
-            <View style={styles.infoCard}>
-              <Text style={styles.infoLabel}>Script</Text>
-              <Text style={styles.infoText}>{project.scriptName}</Text>
+            <View style={[styles.infoCard, currentStyles.infoCard]}>
+              <Text style={[styles.infoLabel, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>Script</Text>
+              <Text style={[styles.infoText, currentStyles.infoText]} numberOfLines={1}>
+                {project.scriptName}
+              </Text>
+              <TouchableOpacity onPress={() => setShowEditModal(true)} style={styles.editButton}>
+                <Edit size={16} color="#3282b8" />
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -151,9 +243,9 @@ export default function ProjectDetail() {
         </TouchableOpacity>
 
         <View style={styles.runsSection}>
-          <Text style={styles.sectionTitle}>Past Runs</Text>
+          <Text style={[styles.sectionTitle, currentStyles.sectionTitle]}>Past Runs</Text>
           {project.runs.length === 0 ? (
-            <Text style={styles.emptyText}>No runs yet</Text>
+            <Text style={[styles.emptyText, currentStyles.emptyText]}>No runs yet</Text>
           ) : (
             <FlatList
               data={project.runs}
@@ -165,9 +257,76 @@ export default function ProjectDetail() {
         </View>
       </View>
 
-      <View style={styles.adPlaceholder}>
+      <View style={[styles.adPlaceholder, currentStyles.adPlaceholder]}>
         <Text style={styles.adText}>Google AdSense Placeholder</Text>
       </View>
+
+      <Modal
+        visible={showEditModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.editModal, currentStyles.editModal]}>
+            <Text style={[styles.modalTitle, currentStyles.modalTitle]}>Edit Project</Text>
+            
+            <View style={styles.modalSection}>
+              <Text style={[styles.modalLabel, currentStyles.modalLabel]}>Word Count</Text>
+              <TextInput
+                style={[styles.modalInput, currentStyles.modalInput]}
+                value={editWordCount}
+                onChangeText={setEditWordCount}
+                placeholder="Enter word count"
+                placeholderTextColor={isDarkMode ? "#666" : "#999"}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={[styles.modalLabel, currentStyles.modalLabel]}>Script</Text>
+              {hasScript ? (
+                <View style={styles.scriptContainer}>
+                  <Text style={[styles.scriptName, currentStyles.scriptName]} numberOfLines={1}>
+                    {editScriptName}
+                  </Text>
+                  <View style={styles.scriptActions}>
+                    <TouchableOpacity onPress={uploadNewScript} style={styles.scriptActionButton}>
+                      <Upload size={16} color="#3282b8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={removeScript} style={styles.scriptActionButton}>
+                      <Trash2 size={16} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.uploadButton, currentStyles.uploadButton]}
+                  onPress={uploadNewScript}
+                >
+                  <Upload size={16} color="#3282b8" />
+                  <Text style={[styles.uploadText, currentStyles.uploadText]}>Upload Script</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={saveChanges}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -175,7 +334,6 @@ export default function ProjectDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
   },
   header: {
     flexDirection: 'row',
@@ -183,12 +341,10 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: '#1a1a2e',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginLeft: 16,
   },
   content: {
@@ -202,7 +358,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   infoCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 16,
     flexDirection: 'row',
@@ -213,16 +368,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    flex: 1,
+    minWidth: 120,
   },
   infoLabel: {
     fontSize: 12,
-    color: '#666',
     textTransform: 'uppercase',
   },
   infoText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a2e',
+    flex: 1,
+  },
+  editButton: {
+    padding: 4,
   },
   newRunButton: {
     flexDirection: 'row',
@@ -245,17 +404,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1a1a2e',
     marginBottom: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginTop: 40,
   },
   runCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
@@ -264,6 +420,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  runCardLight: {
+    backgroundColor: '#ffffff',
+  },
+  runCardDark: {
+    backgroundColor: '#2a2a2a',
   },
   runHeader: {
     flexDirection: 'row',
@@ -274,11 +436,9 @@ const styles = StyleSheet.create({
   runName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1a1a2e',
   },
   runDate: {
     fontSize: 12,
-    color: '#666',
   },
   runDetails: {
     flexDirection: 'row',
@@ -286,11 +446,21 @@ const styles = StyleSheet.create({
   },
   runDetail: {
     fontSize: 14,
+  },
+  textLight: {
+    color: '#1a1a2e',
+  },
+  textDark: {
+    color: '#ffffff',
+  },
+  textSecondaryLight: {
     color: '#666',
+  },
+  textSecondaryDark: {
+    color: '#cccccc',
   },
   adPlaceholder: {
     height: 60,
-    backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
     margin: 20,
@@ -299,5 +469,193 @@ const styles = StyleSheet.create({
   adText: {
     color: '#666',
     fontSize: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editModal: {
+    margin: 20,
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalSection: {
+    marginBottom: 20,
+  },
+  modalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  modalInput: {
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  scriptContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  scriptName: {
+    flex: 1,
+    fontSize: 14,
+  },
+  scriptActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  scriptActionButton: {
+    padding: 8,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 2,
+    borderColor: '#3282b8',
+    borderStyle: 'dashed',
+  },
+  uploadText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#666',
+  },
+  saveButton: {
+    backgroundColor: '#3282b8',
+  },
+  cancelButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+});
+
+const lightStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#f5f7fa',
+  },
+  header: {
+    backgroundColor: '#ffffff',
+  },
+  title: {
+    color: '#1a1a2e',
+  },
+  sectionTitle: {
+    color: '#1a1a2e',
+  },
+  emptyText: {
+    color: '#666',
+  },
+  infoCard: {
+    backgroundColor: '#ffffff',
+  },
+  infoText: {
+    color: '#1a1a2e',
+  },
+  adPlaceholder: {
+    backgroundColor: '#e0e0e0',
+  },
+  editModal: {
+    backgroundColor: '#ffffff',
+  },
+  modalTitle: {
+    color: '#1a1a2e',
+  },
+  modalLabel: {
+    color: '#1a1a2e',
+  },
+  modalInput: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e0e0e0',
+    color: '#000000',
+  },
+  scriptName: {
+    color: '#1a1a2e',
+  },
+  uploadButton: {
+    backgroundColor: '#ffffff',
+  },
+  uploadText: {
+    color: '#3282b8',
+  },
+});
+
+const darkStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#1a1a1a',
+  },
+  header: {
+    backgroundColor: '#2a2a2a',
+  },
+  title: {
+    color: '#ffffff',
+  },
+  sectionTitle: {
+    color: '#ffffff',
+  },
+  emptyText: {
+    color: '#cccccc',
+  },
+  infoCard: {
+    backgroundColor: '#2a2a2a',
+  },
+  infoText: {
+    color: '#ffffff',
+  },
+  adPlaceholder: {
+    backgroundColor: '#3a3a3a',
+  },
+  editModal: {
+    backgroundColor: '#2a2a2a',
+  },
+  modalTitle: {
+    color: '#ffffff',
+  },
+  modalLabel: {
+    color: '#ffffff',
+  },
+  modalInput: {
+    backgroundColor: '#3a3a3a',
+    borderColor: '#4a4a4a',
+    color: '#ffffff',
+  },
+  scriptName: {
+    color: '#ffffff',
+  },
+  uploadButton: {
+    backgroundColor: '#3a3a3a',
+  },
+  uploadText: {
+    color: '#3282b8',
   },
 });
