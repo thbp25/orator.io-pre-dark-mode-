@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Play, Clock, Edit, Trash2, Upload } from 'lucide-react-native';
+import { ArrowLeft, Play, Clock, CreditCard as Edit, Trash2, Upload } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 
